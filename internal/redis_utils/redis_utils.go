@@ -114,11 +114,10 @@ func FlushRedis(ctx context.Context, client *redis.Client) error {
 	return statusCmd.Err()
 }
 
-// Periodically clear the cache every 10 seconds
+// Periodically clear the cache
 func PeriodicallyClearCache(client *redis.Client) {
-	ticker := time.NewTicker(10 * time.Second)
+	ticker := time.NewTicker(30 * time.Second)
 	for range ticker.C {
-		// Clear cache by the key ("/v1/brand")
 		err := FlushRedis(context.Background(), client)
 		if err != nil {
 			fmt.Println("Error occurred while flushing cache:", err)
@@ -128,6 +127,7 @@ func PeriodicallyClearCache(client *redis.Client) {
 	}
 }
 
+// WithRedisContext creates a new context with the Redis client.
 func WithRedisContext(handler http.Handler, client *redis.Client) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// Create a new context with the Redis client

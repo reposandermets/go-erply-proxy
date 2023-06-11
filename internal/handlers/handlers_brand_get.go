@@ -1,13 +1,54 @@
 package handlers
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"net/http"
 	"strings"
+	"time"
 
+	"github.com/erply/api-go-wrapper/pkg/api"
 	redis_utils "github.com/reposandermets/go-erply-proxy/internal/redis_utils"
 )
+
+type BrandResponse struct {
+	Added     int32  `json:"added,omitempty"`
+	Addedby   string `json:"addedby,omitempty"`
+	Changed   int32  `json:"changed,omitempty"`
+	Changedby string `json:"changedby,omitempty"`
+	Id        int32  `json:"id,omitempty"`
+	Name      string `json:"name,omitempty"`
+}
+
+func GetBrandsFromErplyAPI() {
+
+	sessionKey := "c2bb1db09a2ce295c67ae0c6b5ffee9c3a0327a319ba"
+	clientCode := "104791"
+
+	cli, err := api.NewClient(sessionKey, clientCode, nil)
+	if err != nil {
+		panic(err)
+	}
+
+	//configure the client to send the data payload in the request body instead of the query parameters.
+	//Using the request body eliminates the query size limitations imposed by the maximum URL length
+	cli.SendParametersInRequestBody()
+
+	//init context to control the request flow
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	brands, err := cli.ProductManager.GetBrands(ctx, nil)
+	// print the result
+	if err != nil {
+		panic(err)
+	}
+	// println(brands)
+
+	fmt.Printf("Brand: %+v\n", brands)
+
+}
 
 func V1BrandGet(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
@@ -43,18 +84,4 @@ func V1BrandGet(w http.ResponseWriter, r *http.Request) {
 	fmt.Printf("reqLookupKey: %s\n", data)
 	w.WriteHeader(http.StatusOK)
 	w.Write([]byte(data))
-}
-
-func V1BrandPost(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
-	w.WriteHeader(http.StatusOK)
-
-	//a, _ := GetRedisClientFromContext(r.Context())
-
-	// go ClearCache(r.Context(), , "/v1/brand")
-
-}
-
-func Index(w http.ResponseWriter, r *http.Request) {
-	fmt.Fprintf(w, "Hello World!")
 }
