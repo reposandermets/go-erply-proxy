@@ -3,10 +3,8 @@ package handlers
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"log"
 	"net/http"
-	"strings"
 	"sync"
 	"time"
 
@@ -19,15 +17,14 @@ type BrandCreateRequest struct {
 	Name string `json:"name"`
 }
 
-func SaveBrandToErplyAPI(sessionKey string, clientCode string, payload BrandCreateRequest) (result products.SaveBrandResult, err error) {
-
+func SaveBrandToErplyAPI(ctx context.Context, sessionKey string, clientCode string, payload BrandCreateRequest) (products.SaveBrandResult, error) {
 	cli, err := api.NewClient(sessionKey, clientCode, nil)
 	if err != nil {
-		return result, err
+		return products.SaveBrandResult{}, err
 	}
 	cli.SendParametersInRequestBody()
 
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
 
 	data := map[string]string{
@@ -39,10 +36,12 @@ func SaveBrandToErplyAPI(sessionKey string, clientCode string, payload BrandCrea
 
 func V1BrandPost(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
+	ctx := r.Context()
+
 	var brand BrandCreateRequest
 
-	decoder := json.NewDecoder(r.Body)
-	if err := decoder.Decode(&brand); err != nil {
+	err := json.NewDecoder(r.Body).Decode(&brand)
+	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 		w.Write([]byte(`{"message":"Invalid request body"}`))
 		return
@@ -56,26 +55,24 @@ func V1BrandPost(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// TODO needs middleware to check if the user is authorized
-	split := strings.Split(r.Header.Get("Authorization"), ":")
-	if len(split) != 2 {
-		w.WriteHeader(http.StatusUnauthorized)
-		w.Write([]byte(`{"message":"Unauthorized"}`))
-		return
-	}
+	sessionKey, _ := ctx.Value("ErplySessionKey").(string)
+	clientCode, _ := ctx.Value("ErplyClientCode").(string)
 
-	sessionKey := split[0]
-	clientCode := split[1]
-
-	res, err := SaveBrandToErplyAPI(sessionKey, clientCode, brand)
+	res, err := SaveBrandToErplyAPI(ctx, sessionKey, clientCode, brand)
 	if err != nil {
-		fmt.Println("Error:", err)
+		log.Println("Error:", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		w.Write([]byte(`{"message":"Internal server error"}`))
 		return
 	}
 
-	responseJSON, _ := json.Marshal(res)
+	responseJSON, err := json.Marshal(res)
+	if err != nil {
+		log.Println("Error:", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		w.Write([]byte(`{"message":"Internal server error"}`))
+		return
+	}
 
 	w.WriteHeader(http.StatusOK)
 	w.Write(responseJSON)
@@ -84,16 +81,15 @@ func V1BrandPost(w http.ResponseWriter, r *http.Request) {
 	wg.Add(1)
 
 	// Clear cache for this request category: /v1/brand
-	go func(req *http.Request) {
+	go func() {
 		defer wg.Done()
-		categoryKey, _ := redis_utils.GenerateUniqueKey(req)
+		categoryKey, _ := redis_utils.GenerateUniqueKey(r)
 		err := redis_utils.ClearCache(r.Context(), categoryKey)
 		if err != nil {
-			// Handle error while saving to cache
-			log.Printf("Error saving to cache: %v\n", err)
+			log.Printf("Error clearing cache: %v\n", err)
 		}
-	}(r)
+	}()
 
-	// Wait for the cache saving goroutine to complete
+	// Wait for the cache clearing goroutine to complete
 	wg.Wait()
 }

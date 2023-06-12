@@ -1,6 +1,7 @@
 package routes
 
 import (
+	"context"
 	"log"
 	"net/http"
 	"strings"
@@ -9,7 +10,6 @@ import (
 	"github.com/go-redis/redis/v8"
 	"github.com/gorilla/mux"
 	"github.com/reposandermets/go-erply-proxy/internal/handlers"
-
 	redis_utils "github.com/reposandermets/go-erply-proxy/internal/redis_utils"
 )
 
@@ -31,13 +31,13 @@ var routes = Routes{
 	},
 	Route{
 		"V1BrandGet",
-		strings.ToUpper("Get"),
+		http.MethodGet,
 		"/v1/brand",
 		handlers.V1BrandGet,
 	},
 	Route{
 		"V1BrandPost",
-		strings.ToUpper("Post"),
+		http.MethodPost,
 		"/v1/brand",
 		handlers.V1BrandPost,
 	},
@@ -48,12 +48,36 @@ func Logger(inner http.Handler, name string) http.Handler {
 		start := time.Now()
 		inner.ServeHTTP(w, r)
 		log.Printf(
-			"%s %s %s %s",
+			"%s %s %s %s - %s",
 			r.Method,
 			r.RequestURI,
 			name,
 			time.Since(start),
+			r.RemoteAddr,
 		)
+	})
+}
+
+func AuthMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/" {
+			// Skip authentication for the "Index" route
+			next.ServeHTTP(w, r)
+			return
+		}
+
+		split := strings.Split(r.Header.Get("Authorization"), ":")
+		if len(split) != 2 {
+			w.WriteHeader(http.StatusUnauthorized)
+			w.Write([]byte(`{"message":"Unauthorized"}`))
+			return
+		}
+
+		// Add custom context keys for sessionKey and clientCode
+		ctx := context.WithValue(r.Context(), "ErplySessionKey", split[0])
+		ctx = context.WithValue(ctx, "ErplyClientCode", split[1])
+
+		next.ServeHTTP(w, r.WithContext(ctx))
 	})
 }
 
@@ -63,6 +87,10 @@ func NewRouter(client *redis.Client) *mux.Router {
 		var handler http.Handler
 		handler = route.HandlerFunc
 		handler = Logger(handler, route.Name)
+
+		if route.Name != "Index" {
+			handler = AuthMiddleware(handler)
+		}
 
 		handler = redis_utils.WithRedisContext(handler, client)
 
