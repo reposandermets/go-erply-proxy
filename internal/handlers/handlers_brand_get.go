@@ -15,7 +15,7 @@ import (
 	"github.com/reposandermets/go-erply-proxy/internal/redis_utils"
 )
 
-func GetBrandsFromErplyAPI(sessionKey string, clientCode string) ([]products.ProductBrand, error) {
+func GetBrandsFromErplyAPI(sessionKey string, clientCode string) (result []products.ProductBrand, err error) {
 
 	cli, err := api.NewClient(sessionKey, clientCode, nil)
 	if err != nil {
@@ -27,12 +27,12 @@ func GetBrandsFromErplyAPI(sessionKey string, clientCode string) ([]products.Pro
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
-	brands, err := cli.ProductManager.GetBrands(ctx, nil)
+	result, err = cli.ProductManager.GetBrands(ctx, nil)
 	if err != nil {
 		return nil, err
 	}
 
-	return brands, nil
+	return result, nil
 }
 
 func V1BrandGet(w http.ResponseWriter, r *http.Request) {
@@ -71,7 +71,6 @@ func V1BrandGet(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		w.Write(jsonData)
 
-		// Create a WaitGroup to synchronize goroutines
 		var wg sync.WaitGroup
 		wg.Add(1)
 

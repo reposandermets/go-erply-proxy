@@ -87,9 +87,10 @@ func GetRedisClientFromContext(ctx context.Context) (*redis.Client, error) {
 }
 
 // ClearCache clears the cache by the key.
-func ClearCache(ctx context.Context, client *redis.Client, key string) error {
+func ClearCache(ctx context.Context, categoryKey string) error {
+	client := ctx.Value("redis").(*redis.Client)
 	// Find keys matching the provided key pattern
-	keys, err := client.Keys(ctx, key+"|*").Result()
+	keys, err := client.Keys(ctx, categoryKey+"|*").Result()
 	if err != nil {
 		// Error occurred while accessing Redis
 		return err

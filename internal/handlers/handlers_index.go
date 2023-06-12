@@ -6,7 +6,7 @@ import (
 )
 
 type ErrorResponse struct {
-	Message string `json:"message,omitempty"`
+	Message string `json:"message"`
 }
 
 func Index(w http.ResponseWriter, r *http.Request) {
