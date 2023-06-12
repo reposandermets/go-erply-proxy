@@ -12,6 +12,11 @@ type BrandCreateRequest struct {
 	Name string `json:"name"`
 }
 
+type Brand struct {
+	ID   int    `json:"id"`
+	Name string `json:"name"`
+}
+
 type ErplyAPI interface {
 	SaveBrand(ctx context.Context, sessionKey string, clientCode string, payload map[string]string) (products.SaveBrandResult, error)
 	GetBrands(ctx context.Context, sessionKey string, clientCode string) ([]products.ProductBrand, error)
