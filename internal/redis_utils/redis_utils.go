@@ -2,18 +2,39 @@ package redis_utils
 
 import (
 	"context"
-	"errors"
 	"fmt"
+	"log"
 	"net/http"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/go-redis/redis/v8"
 )
 
-// GenerateUniqueKey generates a unique key from the request URL.
-func GenerateUniqueKey(r *http.Request) (string, string) {
+type RedisUtil interface {
+	GenerateUniqueKey(r *http.Request) (string, string)
+	GetFromCache(ctx context.Context, key string) (string, error)
+	SaveToCache(ctx context.Context, key1, key2, data string) error
+	ClearCache(ctx context.Context, categoryKey string) error
+	FlushRedis(ctx context.Context) error
+	PeriodicallyClearCache()
+	ManageClearCache(wg *sync.WaitGroup, r *http.Request)
+	ManageSaveToCache(wg *sync.WaitGroup, r *http.Request, categoryKey string, urlParamsKey string, jsonData []byte)
+}
+
+type RedisUtilImpl struct {
+	client *redis.Client
+}
+
+func NewRedisUtil(redisClient *redis.Client) RedisUtil {
+	return &RedisUtilImpl{
+		client: redisClient,
+	}
+}
+
+func (ru *RedisUtilImpl) GenerateUniqueKey(r *http.Request) (string, string) {
 	// Get the URI path
 	uriPath := r.URL.Path
 
@@ -38,88 +59,54 @@ func GenerateUniqueKey(r *http.Request) (string, string) {
 	return key1, key2
 }
 
-// GetFromCache retrieves data from Redis cache using the unique key.
-func GetFromCache(ctx context.Context, key string) (string, error) {
-	// Retrieve the Redis client from the context
-	client := ctx.Value("redis").(*redis.Client)
-
-	// Check if the key exists in the cache
-	data, err := client.Get(ctx, key).Result()
+func (r *RedisUtilImpl) GetFromCache(ctx context.Context, key string) (string, error) {
+	data, err := r.client.Get(ctx, key).Result()
 	if err != nil {
 		if err == redis.Nil {
-			// Key does not exist in the cache
 			return "", nil
 		}
-		// Error occurred while accessing Redis
 		return "", err
 	}
 
-	// Key exists in the cache, return the data
 	return data, nil
 }
 
-// SaveToCache saves data to Redis cache using the composite keys.
-func SaveToCache(ctx context.Context, key1, key2, data string) error {
-	// Retrieve the Redis client from the context
-	client := ctx.Value("redis").(*redis.Client)
-
+func (r *RedisUtilImpl) SaveToCache(ctx context.Context, key1, key2, data string) error {
 	// Create a composite key
 	compositeKey := key1 + "|" + key2
-
-	// Save data to Redis cache with the composite key
-	err := client.Set(ctx, compositeKey, data, 0).Err()
+	err := r.client.Set(ctx, compositeKey, data, 0).Err()
 	if err != nil {
-		// Error occurred while saving to Redis
 		return err
 	}
 
-	// Data successfully saved to cache
 	return nil
 }
 
-// GetRedisClientFromContext retrieves the Redis client from the request context.
-func GetRedisClientFromContext(ctx context.Context) (*redis.Client, error) {
-	client, ok := ctx.Value("redis").(*redis.Client)
-	if !ok {
-		return nil, errors.New("redis client not found in context")
-	}
-	return client, nil
-}
-
-// ClearCache clears the cache by the key.
-func ClearCache(ctx context.Context, categoryKey string) error {
-	client := ctx.Value("redis").(*redis.Client)
-	// Find keys matching the provided key pattern
-	keys, err := client.Keys(ctx, categoryKey+"|*").Result()
+func (r *RedisUtilImpl) ClearCache(ctx context.Context, categoryKey string) error {
+	keys, err := r.client.Keys(ctx, categoryKey+"|*").Result()
 	if err != nil {
-		// Error occurred while accessing Redis
 		return err
 	}
 
-	// Delete the keys matching the pattern
 	if len(keys) > 0 {
-		err = client.Del(ctx, keys...).Err()
+		err = r.client.Del(ctx, keys...).Err()
 		if err != nil {
-			// Error occurred while deleting keys from Redis
 			return err
 		}
 	}
 
-	// Cache cleared successfully
 	return nil
 }
 
-// FlushRedis flushes (empties) the entire Redis database.
-func FlushRedis(ctx context.Context, client *redis.Client) error {
-	statusCmd := client.FlushAll(ctx)
+func (r *RedisUtilImpl) FlushRedis(ctx context.Context) error {
+	statusCmd := r.client.FlushAll(ctx)
 	return statusCmd.Err()
 }
 
-// Periodically clear the cache
-func PeriodicallyClearCache(client *redis.Client) {
+func (r *RedisUtilImpl) PeriodicallyClearCache() {
 	ticker := time.NewTicker(30 * time.Second)
 	for range ticker.C {
-		err := FlushRedis(context.Background(), client)
+		err := r.FlushRedis(context.Background())
 		if err != nil {
 			fmt.Println("Error occurred while flushing cache:", err)
 		} else {
@@ -128,13 +115,22 @@ func PeriodicallyClearCache(client *redis.Client) {
 	}
 }
 
-// WithRedisContext creates a new context with the Redis client.
-func WithRedisContext(handler http.Handler, client *redis.Client) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// Create a new context with the Redis client
-		ctx := context.WithValue(r.Context(), "redis", client)
+func (ru *RedisUtilImpl) ManageClearCache(wg *sync.WaitGroup, r *http.Request) {
+	defer wg.Done()
 
-		// Serve the request with the new context
-		handler.ServeHTTP(w, r.WithContext(ctx))
-	})
+	categoryKey, _ := ru.GenerateUniqueKey(r)
+
+	err := ru.ClearCache(r.Context(), categoryKey)
+	if err != nil {
+		log.Printf("Error clearing cache: %v\n", err)
+	}
+}
+
+func (ru *RedisUtilImpl) ManageSaveToCache(wg *sync.WaitGroup, r *http.Request, categoryKey string, urlParamsKey string, jsonData []byte) {
+	defer wg.Done()
+
+	err := ru.SaveToCache(r.Context(), categoryKey, urlParamsKey, string(jsonData))
+	if err != nil {
+		log.Printf("Error saving to cache: %v\n", err)
+	}
 }

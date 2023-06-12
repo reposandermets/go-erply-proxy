@@ -1,51 +1,33 @@
 package handlers
 
 import (
-	"context"
 	"encoding/json"
 	"log"
 	"net/http"
 	"sync"
 
-	"github.com/erply/api-go-wrapper/pkg/api"
-	"github.com/erply/api-go-wrapper/pkg/api/products"
+	"github.com/reposandermets/go-erply-proxy/internal/erply"
 	"github.com/reposandermets/go-erply-proxy/internal/redis_utils"
 )
-
-func GetBrandsFromErplyAPI(ctx context.Context, sessionKey string, clientCode string) ([]products.ProductBrand, error) {
-	cli, err := api.NewClient(sessionKey, clientCode, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	cli.SendParametersInRequestBody()
-
-	ctx, cancel := context.WithCancel(ctx)
-	defer cancel()
-
-	result, err := cli.ProductManager.GetBrands(ctx, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	return result, nil
-}
 
 func V1BrandGet(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
 
 	ctx := r.Context()
 
+	redisUtil := ctx.Value("redisUtil").(redis_utils.RedisUtil)
+	erplyClient := ctx.Value("erplyClient").(erply.ErplyAPI)
+
 	sessionKey, _ := ctx.Value("ErplySessionKey").(string)
 	clientCode, _ := ctx.Value("ErplyClientCode").(string)
 
-	categoryKey, urlParamsKey := redis_utils.GenerateUniqueKey(r)
-	data, _ := redis_utils.GetFromCache(ctx, categoryKey+"|"+urlParamsKey)
+	categoryKey, urlParamsKey := redisUtil.GenerateUniqueKey(r)
+	data, _ := redisUtil.GetFromCache(ctx, categoryKey+"|"+urlParamsKey)
 
 	if data == "" {
-		log.Println("Cache miss")
+		log.Println("Cache miss", categoryKey, urlParamsKey)
 
-		brands, err := GetBrandsFromErplyAPI(ctx, sessionKey, clientCode)
+		brands, err := erplyClient.GetBrands(ctx, sessionKey, clientCode)
 		if err != nil {
 			log.Printf("Error retrieving brands: %v\n", err)
 			w.WriteHeader(http.StatusInternalServerError)
@@ -61,30 +43,18 @@ func V1BrandGet(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		log.Println(string(jsonData))
 		w.WriteHeader(http.StatusOK)
 		w.Write(jsonData)
 
 		var wg sync.WaitGroup
 		wg.Add(1)
-
-		// Save data to cache asynchronously
-		go func() {
-			defer wg.Done()
-			err := redis_utils.SaveToCache(ctx, categoryKey, urlParamsKey, string(jsonData))
-			if err != nil {
-				log.Printf("Error saving to cache: %v\n", err)
-				// Handle the error accordingly, e.g., return an error response or log it for later analysis
-			}
-		}()
-
-		// Wait for the cache saving goroutine to complete
+		go redisUtil.ManageSaveToCache(&wg, r, categoryKey, urlParamsKey, jsonData)
 		wg.Wait()
+
 		return
 	}
 
-	// Cache hit, return data
-	log.Println("Cache hit")
+	log.Println("Cache hit", categoryKey, urlParamsKey)
 
 	w.WriteHeader(http.StatusOK)
 	w.Write([]byte(data))

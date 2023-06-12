@@ -7,10 +7,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/go-redis/redis/v8"
 	"github.com/gorilla/mux"
+	"github.com/reposandermets/go-erply-proxy/internal/erply"
 	"github.com/reposandermets/go-erply-proxy/internal/handlers"
-	redis_utils "github.com/reposandermets/go-erply-proxy/internal/redis_utils"
+	"github.com/reposandermets/go-erply-proxy/internal/redis_utils"
 )
 
 type Route struct {
@@ -81,7 +81,26 @@ func AuthMiddleware(next http.Handler) http.Handler {
 	})
 }
 
-func NewRouter(client *redis.Client) *mux.Router {
+// WithRedisContext creates a new context with the Redis client.
+func WithRedisContext(handler http.Handler, redisUtil redis_utils.RedisUtil) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ctx := context.WithValue(r.Context(), "redisUtil", redisUtil)
+		handler.ServeHTTP(w, r.WithContext(ctx))
+	})
+}
+
+// WithRedisContext creates a new context with the Redis client.
+func WithErplyAPIContext(handler http.Handler, erplyClient erply.ErplyAPI) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Create a new context with the Redis client
+		ctx := context.WithValue(r.Context(), "erplyClient", erplyClient)
+
+		// Serve the request with the new context
+		handler.ServeHTTP(w, r.WithContext(ctx))
+	})
+}
+
+func NewRouter(redisUtil redis_utils.RedisUtil, erplyClient erply.ErplyAPI) *mux.Router {
 	router := mux.NewRouter().StrictSlash(true)
 	for _, route := range routes {
 		var handler http.Handler
@@ -90,9 +109,9 @@ func NewRouter(client *redis.Client) *mux.Router {
 
 		if route.Name != "Index" {
 			handler = AuthMiddleware(handler)
+			handler = WithRedisContext(handler, redisUtil)
+			handler = WithErplyAPIContext(handler, erplyClient)
 		}
-
-		handler = redis_utils.WithRedisContext(handler, client)
 
 		router.
 			Methods(route.Method).

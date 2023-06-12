@@ -10,6 +10,7 @@ import (
 
 	"github.com/erply/api-go-wrapper/pkg/api"
 	"github.com/erply/api-go-wrapper/pkg/api/products"
+	"github.com/reposandermets/go-erply-proxy/internal/erply"
 	"github.com/reposandermets/go-erply-proxy/internal/redis_utils"
 )
 
@@ -17,7 +18,7 @@ type BrandCreateRequest struct {
 	Name string `json:"name"`
 }
 
-func SaveBrandToErplyAPI(ctx context.Context, sessionKey string, clientCode string, payload BrandCreateRequest) (products.SaveBrandResult, error) {
+func SaveBrandToErplyAPI1(ctx context.Context, sessionKey string, clientCode string, payload BrandCreateRequest) (products.SaveBrandResult, error) {
 	cli, err := api.NewClient(sessionKey, clientCode, nil)
 	if err != nil {
 		return products.SaveBrandResult{}, err
@@ -58,7 +59,13 @@ func V1BrandPost(w http.ResponseWriter, r *http.Request) {
 	sessionKey, _ := ctx.Value("ErplySessionKey").(string)
 	clientCode, _ := ctx.Value("ErplyClientCode").(string)
 
-	res, err := SaveBrandToErplyAPI(ctx, sessionKey, clientCode, brand)
+	erplyClient := ctx.Value("erplyClient").(erply.ErplyAPI)
+
+	payload := map[string]string{
+		"name": brand.Name,
+	}
+
+	res, err := erplyClient.SaveBrand(ctx, sessionKey, clientCode, payload)
 	if err != nil {
 		log.Println("Error:", err)
 		w.WriteHeader(http.StatusInternalServerError)
@@ -74,22 +81,14 @@ func V1BrandPost(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	var wg sync.WaitGroup
+	redisUtil := ctx.Value("redisUtil").(redis_utils.RedisUtil)
+	wg.Add(1)
+
+	go redisUtil.ManageClearCache(&wg, r)
+
 	w.WriteHeader(http.StatusOK)
 	w.Write(responseJSON)
 
-	var wg sync.WaitGroup
-	wg.Add(1)
-
-	// Clear cache for this request category: /v1/brand
-	go func() {
-		defer wg.Done()
-		categoryKey, _ := redis_utils.GenerateUniqueKey(r)
-		err := redis_utils.ClearCache(r.Context(), categoryKey)
-		if err != nil {
-			log.Printf("Error clearing cache: %v\n", err)
-		}
-	}()
-
-	// Wait for the cache clearing goroutine to complete
 	wg.Wait()
 }
