@@ -10,6 +10,19 @@ import (
 	"github.com/reposandermets/go-erply-proxy/internal/redis_utils"
 )
 
+func createFiltersFromQueryParams(r *http.Request) map[string]string {
+	params := r.URL.Query()
+	filters := make(map[string]string)
+
+	for key, values := range params {
+		// If multiple values are provided for the same key, consider the last one.
+		value := values[len(values)-1]
+		filters[key] = value
+	}
+
+	return filters
+}
+
 // V1BrandGet handles the GET request for retrieving a list of brands.
 func V1BrandGet(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
@@ -27,8 +40,8 @@ func V1BrandGet(w http.ResponseWriter, r *http.Request) {
 
 	if data == "" {
 		log.Println("Cache miss", categoryKey, urlParamsKey)
-
-		brands, err := erplyClient.GetBrands(ctx, sessionKey, clientCode)
+		filters := createFiltersFromQueryParams(r)
+		brands, err := erplyClient.GetBrands(ctx, sessionKey, clientCode, filters)
 		if err != nil {
 			log.Printf("Error retrieving brands: %v\n", err)
 			w.WriteHeader(http.StatusInternalServerError)

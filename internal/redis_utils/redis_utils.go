@@ -35,10 +35,8 @@ func NewRedisUtil(redisClient *redis.Client) RedisUtil {
 }
 
 func (ru *RedisUtilImpl) GenerateUniqueKey(r *http.Request) (string, string) {
-	// Get the URI path
 	uriPath := r.URL.Path
 
-	// Get the sorted URL parameters
 	params := r.URL.Query()
 	paramKeys := make([]string, 0, len(params))
 	for key := range params {

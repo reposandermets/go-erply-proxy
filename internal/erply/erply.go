@@ -2,6 +2,7 @@ package erply
 
 import (
 	"context"
+	"log"
 	"time"
 
 	"github.com/erply/api-go-wrapper/pkg/api"
@@ -19,7 +20,7 @@ type Brand struct {
 
 type ErplyAPI interface {
 	SaveBrand(ctx context.Context, sessionKey string, clientCode string, payload map[string]string) (products.SaveBrandResult, error)
-	GetBrands(ctx context.Context, sessionKey string, clientCode string) ([]products.ProductBrand, error)
+	GetBrands(ctx context.Context, sessionKey string, clientCode string, filters map[string]string) ([]products.ProductBrand, error)
 }
 
 type ErplyClient struct {
@@ -42,18 +43,20 @@ func (c *ErplyClient) SaveBrand(ctx context.Context, sessionKey string, clientCo
 	return cli.ProductManager.SaveBrand(ctx, payload)
 }
 
-func (c *ErplyClient) GetBrands(ctx context.Context, sessionKey string, clientCode string) ([]products.ProductBrand, error) {
+func (c *ErplyClient) GetBrands(ctx context.Context, sessionKey string, clientCode string, filters map[string]string) ([]products.ProductBrand, error) {
 	cli, err := api.NewClient(sessionKey, clientCode, nil)
 	if err != nil {
 		return nil, err
 	}
 
-	cli.SendParametersInRequestBody()
+	// cli.SendParametersInRequestBody()
 
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
-	result, err := cli.ProductManager.GetBrands(ctx, nil)
+	log.Printf("Filters: %v\n", filters)
+
+	result, err := cli.ProductManager.GetBrands(ctx, filters)
 	if err != nil {
 		return nil, err
 	}
