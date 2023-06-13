@@ -22,7 +22,7 @@ func (api *MockErplyAPI) SaveBrand(ctx context.Context, sessionKey string, clien
 	}, nil
 }
 
-func (api *MockErplyAPI) GetBrands(ctx context.Context, sessionKey string, clientCode string) ([]products.ProductBrand, error) {
+func (api *MockErplyAPI) GetBrands(ctx context.Context, sessionKey string, clientCode string, filters map[string]string) ([]products.ProductBrand, error) {
 	// Mock the GetBrands method implementation here
 	// Return a sample array of brands for testing
 	return []products.ProductBrand{
@@ -129,7 +129,7 @@ func TestV1BrandPost200(t *testing.T) {
 	handlers.V1BrandPost(rr, req.WithContext(ctx))
 
 	// Check the response status code
-	if status := rr.Code; status != http.StatusOK {
+	if status := rr.Code; status != http.StatusCreated {
 		t.Errorf("Handler returned wrong status code: got %v, want %v", status, http.StatusOK)
 	}
 
