@@ -1,14 +1,19 @@
-FROM golang:1.10 AS build
-WORKDIR /go/src
-COPY go ./go
-COPY main.go .
-
-ENV CGO_ENABLED=0
+FROM golang:1.17-alpine AS Builder
+RUN apk add --no-cache git
+RUN apk add build-base
+WORKDIR /go/src/app
+COPY . .
 RUN go get -d -v ./...
+RUN go install -v ./...
+RUN go build -o /go/bin/app
 
-RUN go build -a -installsuffix cgo -o swagger .
+# Final stage
+FROM alpine:latest AS Application
+RUN apk --no-cache add ca-certificates
+RUN apk add --no-cache tzdata
+ENV TZ Europe/Tallinn
+COPY --from=builder /go/bin/app /app
 
-FROM scratch AS runtime
-COPY --from=build /go/src/swagger ./
-EXPOSE 8080/tcp
-ENTRYPOINT ["./swagger"]
+ENTRYPOINT ./app
+LABEL Name=ErplyProxy Version=0.0.1
+EXPOSE 8081
