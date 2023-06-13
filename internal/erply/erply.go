@@ -14,7 +14,7 @@ type BrandCreateRequest struct {
 }
 
 type Brand struct {
-	ID   int    `json:"id"`
+	ID   int    `json:"brandID"`
 	Name string `json:"name"`
 }
 
@@ -49,7 +49,7 @@ func (c *ErplyClient) GetBrands(ctx context.Context, sessionKey string, clientCo
 		return nil, err
 	}
 
-	// cli.SendParametersInRequestBody()
+	cli.SendParametersInRequestBody()
 
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
