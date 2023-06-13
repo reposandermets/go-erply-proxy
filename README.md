@@ -48,7 +48,7 @@ Unit tests have been implemented and are passing for successful create and read 
 ```bash
 docker compose build
 
-docker compose up               # Run all, press Ctrl+C to quite
+docker compose up               # Run all, press Ctrl+C to quit
 
 docker compose down             # Tear down network
 ```
