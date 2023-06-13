@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"fmt"
 	"net/http"
 )
 
@@ -10,5 +9,9 @@ type ErrorResponse struct {
 }
 
 func Index(w http.ResponseWriter, r *http.Request) {
-	fmt.Fprintf(w, "v1")
+	http.ServeFile(w, r, "./api/index.html")
+}
+
+func Swagger(w http.ResponseWriter, r *http.Request) {
+	http.ServeFile(w, r, "./api/swagger.json")
 }

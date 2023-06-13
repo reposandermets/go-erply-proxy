@@ -30,6 +30,12 @@ var routes = Routes{
 		handlers.Index,
 	},
 	Route{
+		"Swagger",
+		"GET",
+		"/swagger",
+		handlers.Swagger,
+	},
+	Route{
 		"V1BrandGet",
 		http.MethodGet,
 		"/v1/brand",
@@ -107,7 +113,7 @@ func NewRouter(redisUtil redis_utils.RedisUtil, erplyClient erply.ErplyAPI) *mux
 		handler = route.HandlerFunc
 		handler = Logger(handler, route.Name)
 
-		if route.Name != "Index" {
+		if route.Name != "Index" && route.Name != "Swagger" {
 			handler = AuthMiddleware(handler)
 			handler = WithRedisContext(handler, redisUtil)
 			handler = WithErplyAPIContext(handler, erplyClient)

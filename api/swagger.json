@@ -1,0 +1,185 @@
+{
+    "openapi": "3.0.1",
+    "info": {
+      "title": "Brand API",
+      "description": "Brand API v1",
+      "version": "1.0.0"
+    },
+    "servers": [
+      {
+        "url": "/"
+      }
+    ],
+    "paths": {
+      "/v1/brand": {
+        "get": {
+          "tags": [
+            "Brand"
+          ],
+          "summary": "Get a list of brands",
+          "parameters": [
+            {
+              "name": "skip",
+              "in": "query",
+              "description": "Number of items to skip",
+              "required": false,
+              "style": "form",
+              "explode": true,
+              "schema": {
+                "type": "integer",
+                "default": 0
+              }
+            },
+            {
+              "name": "take",
+              "in": "query",
+              "description": "Number of items to take",
+              "required": false,
+              "style": "form",
+              "explode": true,
+              "schema": {
+                "type": "integer",
+                "default": 20
+              }
+            }
+          ],
+          "responses": {
+            "200": {
+              "description": "OK",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "type": "array",
+                    "items": {
+                      "$ref": "#/components/schemas/BrandResponse"
+                    },
+                    "x-content-type": "application/json"
+                  }
+                }
+              }
+            },
+            "400": {
+              "description": "Bad Request",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/ErrorResponse"
+                  }
+                }
+              }
+            },
+            "500": {
+              "description": "Internal Server Error",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/ErrorResponse"
+                  }
+                }
+              }
+            }
+          },
+          "security": [
+            {
+              "TokenAuth": []
+            }
+          ]
+        },
+        "post": {
+          "tags": [
+            "Brand"
+          ],
+          "summary": "Create a brand",
+          "requestBody": {
+            "description": "Brand object",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BrandCreateRequest"
+                }
+              }
+            },
+            "required": true
+          },
+          "responses": {
+            "201": {
+              "description": "Created",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/BrandResponse"
+                  }
+                }
+              }
+            },
+            "400": {
+              "description": "Bad Request",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/ErrorResponse"
+                  }
+                }
+              }
+            },
+            "500": {
+              "description": "Internal Server Error",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/ErrorResponse"
+                  }
+                }
+              }
+            }
+          },
+          "security": [
+            {
+              "TokenAuth": []
+            }
+          ],
+          "x-codegen-request-body-name": "body"
+        }
+      }
+    },
+    "components": {
+      "schemas": {
+        "BrandCreateRequest": {
+          "type": "object",
+          "properties": {
+            "name": {
+              "type": "string"
+            }
+          }
+        },
+        "BrandResponse": {
+          "type": "object",
+          "properties": {
+            "brandID": {
+              "type": "integer",
+              "format": "int32"
+            }
+          },
+          "example": {
+            "brandID": 1
+          }
+        },
+        "ErrorResponse": {
+          "type": "object",
+          "properties": {
+            "message": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "securitySchemes": {
+        "TokenAuth": {
+          "type": "apiKey",
+          "name": "Authorization",
+          "in": "header"
+        }
+      }
+    }
+  }
+  

@@ -1,15 +1,11 @@
 package handlers
 
 import (
-	"context"
 	"encoding/json"
 	"log"
 	"net/http"
 	"sync"
-	"time"
 
-	"github.com/erply/api-go-wrapper/pkg/api"
-	"github.com/erply/api-go-wrapper/pkg/api/products"
 	"github.com/reposandermets/go-erply-proxy/internal/erply"
 	"github.com/reposandermets/go-erply-proxy/internal/redis_utils"
 )
@@ -18,23 +14,7 @@ type BrandCreateRequest struct {
 	Name string `json:"name"`
 }
 
-func SaveBrandToErplyAPI1(ctx context.Context, sessionKey string, clientCode string, payload BrandCreateRequest) (products.SaveBrandResult, error) {
-	cli, err := api.NewClient(sessionKey, clientCode, nil)
-	if err != nil {
-		return products.SaveBrandResult{}, err
-	}
-	cli.SendParametersInRequestBody()
-
-	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
-	defer cancel()
-
-	data := map[string]string{
-		"name": payload.Name,
-	}
-
-	return cli.ProductManager.SaveBrand(ctx, data)
-}
-
+// V1BrandPost handles the POST request for creating a brand.
 func V1BrandPost(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
 	ctx := r.Context()
@@ -69,7 +49,7 @@ func V1BrandPost(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		log.Println("Error:", err)
 		w.WriteHeader(http.StatusInternalServerError)
-		w.Write([]byte(`{"message":"Internal server error"}`))
+		w.Write([]byte(`{"message":` + err.Error() + `}`))
 		return
 	}
 
@@ -87,7 +67,7 @@ func V1BrandPost(w http.ResponseWriter, r *http.Request) {
 
 	go redisUtil.ManageClearCache(&wg, r)
 
-	w.WriteHeader(http.StatusOK)
+	w.WriteHeader(http.StatusCreated)
 	w.Write(responseJSON)
 
 	wg.Wait()

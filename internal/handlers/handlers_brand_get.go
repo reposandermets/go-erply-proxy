@@ -10,6 +10,7 @@ import (
 	"github.com/reposandermets/go-erply-proxy/internal/redis_utils"
 )
 
+// V1BrandGet handles the GET request for retrieving a list of brands.
 func V1BrandGet(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
 
