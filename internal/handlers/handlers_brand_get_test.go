@@ -34,52 +34,45 @@ func (api *MockErplyAPI) GetBrands(ctx context.Context, sessionKey string, clien
 type MockRedisUtil struct{}
 
 func (ru *MockRedisUtil) GenerateUniqueKey(r *http.Request) (string, string) {
-	// Mock the GenerateUniqueKey method implementation here
+
 	return "categoryKey", "urlParamsKey"
 }
 
 func (ru *MockRedisUtil) GetFromCache(ctx context.Context, key string) (string, error) {
-	// Mock the GetFromCache method implementation here
-	// Return an empty data string to simulate cache miss
+
 	return "", nil
 }
 
 func (ru *MockRedisUtil) SaveToCache(ctx context.Context, key1, key2, data string) error {
-	// Mock the SaveToCache method implementation here
-	// Do nothing for now since we're only testing the handler logic
+
 	return nil
 }
 
 func (ru *MockRedisUtil) ClearCache(ctx context.Context, categoryKey string) error {
-	// Mock the ClearCache method implementation here
-	// Do nothing for now since we're only testing the handler logic
+
 	return nil
 }
 
 func (ru *MockRedisUtil) FlushRedis(ctx context.Context) error {
-	// Mock the FlushRedis method implementation here
-	// Do nothing for now since we're only testing the handler logic
+
 	return nil
 }
 
 func (ru *MockRedisUtil) PeriodicallyClearCache() {
-	// Mock the PeriodicallyClearCache method implementation here
-	// Do nothing for now since we're only testing the handler logic
+
 }
 
 func (ru *MockRedisUtil) ManageClearCache(wg *sync.WaitGroup, r *http.Request) {
-	// Mock the ManageClearCache method implementation here
-	// Do nothing for now since we're only testing the handler logic
+
 	wg.Done()
 }
 
 func (ru *MockRedisUtil) ManageSaveToCache(wg *sync.WaitGroup, r *http.Request, categoryKey string, urlParamsKey string, jsonData []byte) {
-	// Mock the ManageSaveToCache method implementation here
-	// Do nothing for now since we're only testing the handler logic
+
 	wg.Done()
 }
 
-func TestV1BrandGet(t *testing.T) {
+func TestV1BrandGet200(t *testing.T) {
 	// Create a mock request
 	req, err := http.NewRequest("GET", "/v1/brands", nil)
 	if err != nil {
@@ -110,7 +103,7 @@ func TestV1BrandGet(t *testing.T) {
 	}
 }
 
-func TestV1BrandPost(t *testing.T) {
+func TestV1BrandPost200(t *testing.T) {
 	// Create a sample payload
 	payload := map[string]string{
 		"name": "Brand 1",

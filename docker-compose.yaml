@@ -5,11 +5,13 @@ services:
     ports:
       - 6379:6379
 
-  # go-app:
-  #   build:
-  #     context: .
-  #     dockerfile: Dockerfile
-  #   ports:
-  #     - 8080:8080
-  #   depends_on:
-  #     - redis
+  go-app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    environment:
+      DOCKERIZED: True
+    ports:
+      - 8081:8081
+    depends_on:
+      - redis

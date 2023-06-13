@@ -31,7 +31,7 @@ func V1BrandGet(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			log.Printf("Error retrieving brands: %v\n", err)
 			w.WriteHeader(http.StatusInternalServerError)
-			w.Write([]byte(`{"message":"Failed to retrieve brands"}`))
+			w.Write([]byte(`{"message":` + err.Error() + `}`))
 			return
 		}
 
